@@ -103,18 +103,34 @@ jobs:
           cp artifacts/* release/ 2>/dev/null || find artifacts -type f -exec cp {} release/ \;
           ls -lah release/
 
-      - name: Extract version from tag
+      - name: Extract version from tag (fallback to 2.0.5)
         id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=2.0.5" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Ensure tag v2.0.5 exists and is pushed
+        # This step creates and pushes the tag if it does not already exist.
+        run: |
+          git fetch --tags
+          if git rev-parse "v2.0.5" >/dev/null 2>&1; then
+            echo "Tag v2.0.5 already exists"
+          else
+            git tag v2.0.5
+            git push origin v2.0.5
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v2.0.5
+          name: Release ${{ steps.get_version.outputs.VERSION }}
           files: release/*
           draft: false
           prerelease: false
           generate_release_notes: true
-          name: Release ${{ steps.get_version.outputs.VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
